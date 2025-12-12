@@ -1,0 +1,20 @@
+{
+  "mcpServers": {
+    "gmail": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@gongrzhe/server-gmail-autoauth-mcp"],
+      "env": {}
+    },
+    "xero-expenses": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["xero-expenses-mcp.js"],
+      "env": {
+        "XERO_CLIENT_ID": "your_client_id",
+        "XERO_CLIENT_SECRET": "your_client_secret",
+        "XERO_REDIRECT_URI": "https://your-ngrok-url/callback"
+      }
+    }
+  }
+}

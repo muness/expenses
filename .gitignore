@@ -1,0 +1,26 @@
+# Dependencies
+node_modules/
+
+# Environment files with secrets
+.env
+.env.local
+.mcp.json
+
+# Google OAuth credentials and tokens
+credentials.json
+token.json
+gmail-tokens/
+
+# Xero tokens
+xero-tokens/
+.xero-token.json
+
+# OS files
+.DS_Store
+
+# IDE
+.idea/
+.vscode/
+
+# Logs
+*.log
