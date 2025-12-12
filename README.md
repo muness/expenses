@@ -1,6 +1,11 @@
 # Expense Agent
 
-Process starred Gmail emails into Xero expenses using Claude Code.
+Process Gmail receipts and Amazon orders into Xero expenses using Claude Code.
+
+## Features
+
+- **Gmail Expenses**: Star emails with receipts/invoices, run `/process-expenses` to create Xero receipts
+- **Amazon Orders**: Run `/process-amazon-orders` to review recent Amazon purchases and expense business items
 
 ## Setup
 
@@ -36,24 +41,31 @@ Process starred Gmail emails into Xero expenses using Claude Code.
 2. Click **New app**
 3. Fill in:
    - **App name**: Expense Agent
-   - **Integration type**: Web app
+   - **Integration type**: Mobile or desktop app (uses PKCE, no secret needed)
    - **Company or application URL**: http://localhost
    - **Redirect URI**: http://localhost:3000/callback
-4. After creation, note your:
-   - **Client ID**
-   - **Client Secret** (generate one)
+4. After creation, note your **Client ID**
 5. Create a `.env` file in this project:
    ```
    XERO_CLIENT_ID=your_client_id
-   XERO_CLIENT_SECRET=your_client_secret
+   XERO_REDIRECT_URI=http://localhost:3000/callback
    ```
 
-### 3. First Run
+### 3. Amazon Orders (Optional)
 
-Start Claude Code in this directory:
+To process Amazon orders, add your Amazon credentials to `.env`:
+
+```
+AMAZON_USERNAME=your-amazon-email@example.com
+AMAZON_PASSWORD=your-amazon-password
+```
+
+See [amazon-order-mcp](https://github.com/muness/amazon-order-mcp) for the MCP server.
+
+### 4. First Run
 
 ```bash
-cd /path/to/expenses
+npm install
 claude
 ```
 
@@ -61,48 +73,43 @@ The first time you use Xero tools, it will open a browser for OAuth authenticati
 
 ## Usage
 
-Star emails in Gmail that contain invoices/receipts, then run Claude Code and say:
+### Process Gmail Expenses
 
-> Process my starred expense emails
+Star emails in Gmail that contain invoices/receipts, then:
 
-Claude will:
-1. Fetch your starred emails
-2. Identify which ones look like invoices
-3. Extract vendor, amount, date from attachments using vision
-4. Create bills (expenses) in Xero
-5. Report what was processed
+```
+/process-expenses
+```
+
+### Process Amazon Orders
+
+Review recent Amazon orders and create receipts for business expenses:
+
+```
+/process-amazon-orders
+```
+
+You'll be prompted for your Amazon 2FA code if enabled.
 
 ### Example Commands
 
-- "Show me my starred emails" - List starred emails
-- "Process my starred expense emails" - Full workflow
-- "What Xero accounts can I use for expenses?" - List expense account codes
-- "Create an expense for $50 from Acme Corp for office supplies" - Manual entry
-
-## Available Tools
-
-### Gmail (via @gongrzhe/server-gmail-autoauth-mcp)
-- Search and list emails
-- Read email content and attachments
-- Download attachments
-- Mark emails as read/starred
-
-### Xero Expenses (local MCP server)
-- `xero_list_accounts` - List expense account codes
-- `xero_list_contacts` - Search for vendors
-- `xero_create_bill` - Create a bill/expense
+- `"Show me my starred emails"` - List starred emails
+- `"What Xero accounts can I use?"` - List expense account codes
+- `"Create an expense for $50 from Acme Corp"` - Manual entry
 
 ## Project Structure
 
 ```
 expenses/
-├── .env                   # Your API credentials (not in git)
-├── .env.example           # Template
-├── .gitignore
-├── .mcp.json              # MCP server configuration
-├── .xero-token.json       # Xero OAuth tokens (not in git)
-├── xero-expenses-mcp.js   # Local Xero MCP server
-├── package.json
+├── .claude/commands/        # Slash commands
+│   ├── process-expenses.md
+│   └── process-amazon-orders.md
+├── .env                     # Your credentials (not in git)
+├── .env.example             # Template
+├── .mcp.json                # MCP server configuration
+├── amazon-order-to-pdf.cjs  # PDF generator for Amazon orders
+├── html-to-pdf.cjs          # Generic HTML to PDF converter
+├── xero-expenses-mcp.js     # Xero MCP server
 └── README.md
 ```
 
@@ -112,10 +119,9 @@ expenses/
 - Ensure `gcp-oauth.keys.json` is in `~/.gmail-mcp/`
 - Run `npx @gongrzhe/server-gmail-autoauth-mcp auth` to re-authenticate
 - Check that Gmail API is enabled in Google Cloud Console
-- Verify you added yourself as a test user in OAuth consent screen
 
 ### Xero authentication fails
-- Check `.env` has correct XERO_CLIENT_ID and XERO_CLIENT_SECRET
+- Check `.env` has correct `XERO_CLIENT_ID`
 - Verify redirect URI matches exactly: `http://localhost:3000/callback`
 - Delete `.xero-token.json` and re-authenticate
 
