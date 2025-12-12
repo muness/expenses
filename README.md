@@ -2,6 +2,13 @@
 
 Process Gmail receipts and Amazon orders into Xero expenses using Claude Code.
 
+## Requirements
+
+- [Claude Code](https://claude.ai/claude-code) CLI
+- Node.js 18+
+- Xero account
+- Gmail account
+
 ## Features
 
 - **Gmail Expenses**: Star emails with receipts/invoices, run `/process-expenses` to create Xero receipts
@@ -129,3 +136,16 @@ expenses/
 - Run `/mcp` in Claude Code to check MCP server status
 - Ensure you're running Claude Code from this directory
 - Check that dependencies are installed: `npm install`
+
+## Acknowledgments
+
+This project relies on several excellent tools and libraries:
+
+- [Claude Code](https://claude.ai/claude-code) by Anthropic - The AI-powered CLI that orchestrates everything
+- [@gongrzhe/server-gmail-autoauth-mcp](https://www.npmjs.com/package/@gongrzhe/server-gmail-autoauth-mcp) - Gmail MCP server with auto-authentication
+- [xero-node](https://github.com/XeroAPI/xero-node) - Official Xero API SDK
+- [amazon-orders](https://github.com/alexdlaird/amazon-orders) - Amazon order history library (via [amazon-order-mcp](https://github.com/muness/amazon-order-mcp))
+
+## License
+
+MIT
