@@ -73,24 +73,26 @@ async function testXero() {
   }
   console.log('✓ Client ID configured');
 
-  if (!process.env.XERO_CLIENT_SECRET) {
-    console.log('❌ XERO_CLIENT_SECRET not set in .env');
-    return false;
+  // Client secret is optional (PKCE mode doesn't need it)
+  if (process.env.XERO_CLIENT_SECRET) {
+    console.log('✓ Client Secret configured (Web app mode)');
+  } else {
+    console.log('✓ No Client Secret (Desktop app / PKCE mode)');
   }
-  console.log('✓ Client Secret configured');
 
-  if (!process.env.XERO_REDIRECT_URI) {
-    console.log('❌ XERO_REDIRECT_URI not set in .env');
-    return false;
-  }
-  console.log('✓ Redirect URI:', process.env.XERO_REDIRECT_URI);
+  const redirectUri = process.env.XERO_REDIRECT_URI || 'http://localhost:3000/callback';
+  console.log('✓ Redirect URI:', redirectUri);
 
-  const xero = new XeroClient({
+  const config = {
     clientId: process.env.XERO_CLIENT_ID,
-    clientSecret: process.env.XERO_CLIENT_SECRET,
-    redirectUris: [process.env.XERO_REDIRECT_URI],
+    redirectUris: [redirectUri],
     scopes: ['openid', 'profile', 'accounting.transactions', 'accounting.settings.read'],
-  });
+  };
+  if (process.env.XERO_CLIENT_SECRET) {
+    config.clientSecret = process.env.XERO_CLIENT_SECRET;
+  }
+
+  const xero = new XeroClient(config);
 
   if (existsSync(XERO_TOKEN_PATH)) {
     console.log('✓ Token file exists');
@@ -121,8 +123,7 @@ async function testXero() {
     }
   } else {
     console.log('⚠ Not authenticated yet');
-    console.log('  First use will open browser for OAuth');
-    console.log('  Make sure ngrok is running!');
+    console.log('  First use will open browser for OAuth (localhost)');
 
     try {
       const consentUrl = await xero.buildConsentUrl();

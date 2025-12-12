@@ -12,17 +12,29 @@ import { createServer } from "http";
 import { URL } from "url";
 import open from "open";
 import { basename } from "path";
+import { randomBytes, createHash } from "crypto";
 
 config();
 
 const TOKEN_PATH = ".xero-token.json";
 
+// PKCE helpers
+function generateCodeVerifier() {
+  return randomBytes(32).toString("base64url");
+}
+
+function generateCodeChallenge(verifier) {
+  return createHash("sha256").update(verifier).digest("base64url");
+}
+
 class XeroExpensesMCP {
   constructor() {
     const redirectUri = process.env.XERO_REDIRECT_URI || "http://localhost:3000/callback";
-    this.xero = new XeroClient({
+    const clientSecret = process.env.XERO_CLIENT_SECRET;
+
+    // Support both Web app (with secret) and Desktop app (PKCE, no secret)
+    const config = {
       clientId: process.env.XERO_CLIENT_ID,
-      clientSecret: process.env.XERO_CLIENT_SECRET,
       redirectUris: [redirectUri],
       scopes: [
         "openid",
@@ -34,9 +46,15 @@ class XeroExpensesMCP {
         "accounting.attachments",
         "offline_access",
       ],
-      // Note: Expense Claims API is deprecated and will be disabled Feb 2026
-      // but still works for now
-    });
+    };
+
+    // Only add clientSecret if provided (Web app mode)
+    // Desktop app uses PKCE - no secret needed
+    if (clientSecret) {
+      config.clientSecret = clientSecret;
+    }
+
+    this.xero = new XeroClient(config);
     this.tenantId = null;
   }
 
@@ -66,10 +84,29 @@ class XeroExpensesMCP {
   }
 
   async authenticate() {
-    const consentUrl = await this.xero.buildConsentUrl();
     const redirectUri = process.env.XERO_REDIRECT_URI || "http://localhost:3000/callback";
-    // Always listen on 3000 locally - ngrok forwards to this port
+    const clientId = process.env.XERO_CLIENT_ID;
+    const clientSecret = process.env.XERO_CLIENT_SECRET;
     const port = 3000;
+
+    // Generate PKCE values
+    const codeVerifier = generateCodeVerifier();
+    const codeChallenge = generateCodeChallenge(codeVerifier);
+
+    // Build authorization URL
+    const scopes = [
+      "openid", "profile", "email",
+      "accounting.transactions", "accounting.contacts",
+      "accounting.settings.read", "accounting.attachments", "offline_access"
+    ].join(" ");
+
+    const authUrl = new URL("https://login.xero.com/identity/connect/authorize");
+    authUrl.searchParams.set("response_type", "code");
+    authUrl.searchParams.set("client_id", clientId);
+    authUrl.searchParams.set("redirect_uri", redirectUri);
+    authUrl.searchParams.set("scope", scopes);
+    authUrl.searchParams.set("code_challenge", codeChallenge);
+    authUrl.searchParams.set("code_challenge_method", "S256");
 
     return new Promise((resolve, reject) => {
       const server = createServer(async (req, res) => {
@@ -80,10 +117,36 @@ class XeroExpensesMCP {
 
           if (code) {
             try {
-              // Construct the full callback URL as Xero expects it
-              const callbackUrl = new URL(redirectUri);
-              callbackUrl.search = url.search;
-              await this.xero.apiCallback(callbackUrl.toString());
+              // Exchange code for tokens using PKCE
+              const tokenUrl = "https://identity.xero.com/connect/token";
+              const body = new URLSearchParams({
+                grant_type: "authorization_code",
+                code: code,
+                redirect_uri: redirectUri,
+                client_id: clientId,
+                code_verifier: codeVerifier,
+              });
+
+              // Add client_secret if available (Web app mode)
+              if (clientSecret) {
+                body.set("client_secret", clientSecret);
+              }
+
+              const tokenResponse = await fetch(tokenUrl, {
+                method: "POST",
+                headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                body: body.toString(),
+              });
+
+              if (!tokenResponse.ok) {
+                const errorText = await tokenResponse.text();
+                throw new Error(`Token exchange failed: ${errorText}`);
+              }
+
+              const tokens = await tokenResponse.json();
+
+              // Set tokens on XeroClient
+              this.xero.setTokenSet(tokens);
               this.saveTokens();
 
               const tenants = await this.xero.updateTenants();
@@ -105,7 +168,7 @@ class XeroExpensesMCP {
 
       server.listen(port, async () => {
         console.error(`Opening browser for Xero authentication on port ${port}...`);
-        await open(consentUrl);
+        await open(authUrl.toString());
       });
 
       setTimeout(() => {

@@ -6,10 +6,11 @@ Process starred Gmail emails into Xero expense claims. These are **business expe
 
 ## Instructions
 
-1. **Get the first starred email** using gmail MCP (limit 1), skip any with "xero/processed" or "xero/skipped" labels
-2. **Analyze it**:
-   - If it has an attachment (PDF/image): download it to `/tmp/`, use vision to extract vendor, amount, date, description
-   - If no attachment: parse email body for the same info, then generate a PDF receipt from the email content
+1. **List starred emails** (metadata only: subject, sender, attachment names) - skip any with "xero/processed" or "xero/skipped" labels
+2. **For each email**, decide based on metadata:
+   - If has PDF/image attachment: download ONLY the attachment to `/tmp/`, use vision to extract vendor, amount, date, description
+   - If no attachment: then read email body, parse for the same info, generate PDF from body
+   - **Do NOT fetch full email content unless needed** - attachment name + sender is usually enough to identify invoices
 3. **If it's a receipt/invoice**:
    - Show me: vendor, amount, date, description (one line)
    - Create expense claim using `xero_create_expense_claim`
