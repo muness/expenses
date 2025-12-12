@@ -29,9 +29,12 @@ class XeroExpensesMCP {
         "profile",
         "email",
         "accounting.transactions",
-        "accounting.contacts.read",
+        "accounting.contacts",
         "accounting.settings.read",
+        "offline_access",
       ],
+      // Note: Expense Claims API is deprecated and will be disabled Feb 2026
+      // but still works for now
     });
     this.tenantId = null;
   }
@@ -41,7 +44,8 @@ class XeroExpensesMCP {
       const tokens = JSON.parse(readFileSync(TOKEN_PATH, "utf8"));
       this.xero.setTokenSet(tokens);
 
-      if (this.xero.tokenSet.expired()) {
+      const tokenSet = this.xero.readTokenSet();
+      if (tokenSet && tokenSet.expired && tokenSet.expired()) {
         await this.xero.refreshToken();
         this.saveTokens();
       }
@@ -54,22 +58,31 @@ class XeroExpensesMCP {
   }
 
   saveTokens() {
-    writeFileSync(TOKEN_PATH, JSON.stringify(this.xero.tokenSet, null, 2));
+    const tokenSet = this.xero.readTokenSet();
+    if (tokenSet) {
+      writeFileSync(TOKEN_PATH, JSON.stringify(tokenSet, null, 2));
+    }
   }
 
   async authenticate() {
     const consentUrl = await this.xero.buildConsentUrl();
+    const redirectUri = process.env.XERO_REDIRECT_URI || "http://localhost:3000/callback";
+    // Always listen on 3000 locally - ngrok forwards to this port
+    const port = 3000;
 
     return new Promise((resolve, reject) => {
       const server = createServer(async (req, res) => {
-        const url = new URL(req.url, "http://localhost:3000");
+        const url = new URL(req.url, `http://localhost:${port}`);
 
         if (url.pathname === "/callback") {
           const code = url.searchParams.get("code");
 
           if (code) {
             try {
-              await this.xero.apiCallback(url.toString());
+              // Construct the full callback URL as Xero expects it
+              const callbackUrl = new URL(redirectUri);
+              callbackUrl.search = url.search;
+              await this.xero.apiCallback(callbackUrl.toString());
               this.saveTokens();
 
               const tenants = await this.xero.updateTenants();
@@ -89,8 +102,8 @@ class XeroExpensesMCP {
         }
       });
 
-      server.listen(3000, async () => {
-        console.error(`Opening browser for Xero authentication...`);
+      server.listen(port, async () => {
+        console.error(`Opening browser for Xero authentication on port ${port}...`);
         await open(consentUrl);
       });
 
@@ -119,6 +132,19 @@ class XeroExpensesMCP {
         name: a.name,
         type: a.type,
         class: a.class,
+        accountId: a.accountID,
+      }));
+  }
+
+  async listBankAccounts() {
+    await this.ensureAuthenticated();
+    const response = await this.xero.accountingApi.getAccounts(this.tenantId);
+    return response.body.accounts
+      .filter(a => a.status === "ACTIVE" && a.type === "BANK")
+      .map(a => ({
+        accountId: a.accountID,
+        code: a.code,
+        name: a.name,
       }));
   }
 
@@ -224,6 +250,251 @@ class XeroExpensesMCP {
       success: true,
     };
   }
+
+  async createExpense({ vendorName, vendorEmail, amount, description, accountCode, date, reference, bankAccountId }) {
+    await this.ensureAuthenticated();
+
+    // Find or create contact
+    let contacts = await this.listContacts(vendorName);
+    let contact = contacts.find(c => c.name.toLowerCase() === vendorName.toLowerCase());
+
+    if (!contact) {
+      contact = await this.createContact(vendorName, vendorEmail || undefined);
+    }
+
+    // Get bank account - use provided or get first available
+    let bankAccount;
+    if (bankAccountId) {
+      bankAccount = { accountID: bankAccountId };
+    } else {
+      const bankAccounts = await this.listBankAccounts();
+      if (bankAccounts.length === 0) {
+        throw new Error("No bank accounts found in Xero. Please create a bank account first.");
+      }
+      bankAccount = { accountID: bankAccounts[0].accountId };
+    }
+
+    // Create the expense (Spend Money = BankTransaction with type SPEND)
+    const expense = {
+      type: "SPEND",
+      contact: { contactID: contact.contactId },
+      bankAccount: bankAccount,
+      date: date || new Date().toISOString().split("T")[0],
+      reference: reference || undefined,
+      lineItems: [
+        {
+          description: description || "Expense",
+          quantity: 1,
+          unitAmount: amount,
+          accountCode: accountCode || "400",
+        },
+      ],
+      status: "AUTHORISED",
+    };
+
+    const response = await this.xero.accountingApi.createBankTransactions(this.tenantId, { bankTransactions: [expense] });
+    const created = response.body.bankTransactions[0];
+
+    return {
+      bankTransactionId: created.bankTransactionID,
+      vendor: created.contact.name,
+      total: created.total,
+      status: created.status,
+      date: created.date,
+      bankAccount: created.bankAccount?.name,
+    };
+  }
+
+  async attachFileToExpense(bankTransactionId, filePath) {
+    await this.ensureAuthenticated();
+
+    const fileName = basename(filePath);
+    const fileContent = readFileSync(filePath);
+
+    // Determine mime type from extension
+    const ext = fileName.split('.').pop().toLowerCase();
+    const mimeTypes = {
+      'pdf': 'application/pdf',
+      'png': 'image/png',
+      'jpg': 'image/jpeg',
+      'jpeg': 'image/jpeg',
+      'gif': 'image/gif',
+    };
+    const mimeType = mimeTypes[ext] || 'application/octet-stream';
+
+    const response = await this.xero.accountingApi.createBankTransactionAttachmentByFileName(
+      this.tenantId,
+      bankTransactionId,
+      fileName,
+      fileContent,
+      mimeType
+    );
+
+    return {
+      attachmentId: response.body.attachments[0]?.attachmentID,
+      fileName: fileName,
+      success: true,
+    };
+  }
+
+  // Expense Claims functionality (deprecated Feb 2026 but still works)
+
+  async listUsers() {
+    await this.ensureAuthenticated();
+    const response = await this.xero.accountingApi.getUsers(this.tenantId);
+    return response.body.users.map(u => ({
+      userId: u.userID,
+      firstName: u.firstName,
+      lastName: u.lastName,
+      email: u.emailAddress,
+      isSubscriber: u.isSubscriber,
+    }));
+  }
+
+  async createReceipt({ vendorName, vendorEmail, amount, description, accountCode, date, reference, userId }) {
+    await this.ensureAuthenticated();
+
+    // Find or create contact
+    let contacts = await this.listContacts(vendorName);
+    let contact = contacts.find(c => c.name.toLowerCase() === vendorName.toLowerCase());
+
+    if (!contact) {
+      contact = await this.createContact(vendorName, vendorEmail || undefined);
+    }
+
+    // Get the user for the receipt
+    let user;
+    if (userId) {
+      user = { userID: userId };
+    } else {
+      // Get first user (usually the org owner)
+      const users = await this.listUsers();
+      if (users.length === 0) {
+        throw new Error("No users found in Xero organization");
+      }
+      user = { userID: users[0].userId };
+    }
+
+    const receipt = {
+      contact: { contactID: contact.contactId },
+      user: user,
+      date: date || new Date().toISOString().split("T")[0],
+      reference: reference || undefined,
+      lineItems: [
+        {
+          description: description || "Expense",
+          quantity: 1,
+          unitAmount: amount,
+          accountCode: accountCode || "400",
+        },
+      ],
+      status: "DRAFT",
+    };
+
+    const response = await this.xero.accountingApi.createReceipt(this.tenantId, { receipts: [receipt] });
+    const created = response.body.receipts[0];
+
+    return {
+      receiptId: created.receiptID,
+      receiptNumber: created.receiptNumber,
+      vendor: created.contact?.name,
+      total: created.total,
+      status: created.status,
+      date: created.date,
+      userId: created.user?.userID,
+    };
+  }
+
+  async createExpenseClaim({ receiptIds, userId }) {
+    await this.ensureAuthenticated();
+
+    // Get user
+    let user;
+    if (userId) {
+      user = { userID: userId };
+    } else {
+      const users = await this.listUsers();
+      if (users.length === 0) {
+        throw new Error("No users found in Xero organization");
+      }
+      user = { userID: users[0].userId };
+    }
+
+    // Build receipts array
+    const receipts = receiptIds.map(id => ({ receiptID: id }));
+
+    const expenseClaim = {
+      user: user,
+      receipts: receipts,
+      status: "SUBMITTED",
+    };
+
+    const response = await this.xero.accountingApi.createExpenseClaims(
+      this.tenantId,
+      { expenseClaims: [expenseClaim] }
+    );
+    const created = response.body.expenseClaims[0];
+
+    return {
+      expenseClaimId: created.expenseClaimID,
+      status: created.status,
+      total: created.total,
+      userId: created.user?.userID,
+      receipts: created.receipts?.map(r => r.receiptID),
+    };
+  }
+
+  async createExpenseClaimFromReceipt({ vendorName, vendorEmail, amount, description, accountCode, date, reference, userId }) {
+    // Convenience method: creates receipt and expense claim in one go
+    const receipt = await this.createReceipt({
+      vendorName, vendorEmail, amount, description, accountCode, date, reference, userId
+    });
+
+    const claim = await this.createExpenseClaim({
+      receiptIds: [receipt.receiptId],
+      userId: userId,
+    });
+
+    return {
+      expenseClaimId: claim.expenseClaimId,
+      receiptId: receipt.receiptId,
+      vendor: receipt.vendor,
+      total: receipt.total,
+      status: claim.status,
+      date: receipt.date,
+    };
+  }
+
+  async attachFileToReceipt(receiptId, filePath) {
+    await this.ensureAuthenticated();
+
+    const fileName = basename(filePath);
+    const fileContent = readFileSync(filePath);
+
+    const ext = fileName.split('.').pop().toLowerCase();
+    const mimeTypes = {
+      'pdf': 'application/pdf',
+      'png': 'image/png',
+      'jpg': 'image/jpeg',
+      'jpeg': 'image/jpeg',
+      'gif': 'image/gif',
+    };
+    const mimeType = mimeTypes[ext] || 'application/octet-stream';
+
+    const response = await this.xero.accountingApi.createReceiptAttachmentByFileName(
+      this.tenantId,
+      receiptId,
+      fileName,
+      fileContent,
+      mimeType
+    );
+
+    return {
+      attachmentId: response.body.attachments[0]?.attachmentID,
+      fileName: fileName,
+      success: true,
+    };
+  }
 }
 
 // MCP Server setup
@@ -242,6 +513,11 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
       inputSchema: { type: "object", properties: {} },
     },
     {
+      name: "xero_list_bank_accounts",
+      description: "List available Xero bank accounts for expenses",
+      inputSchema: { type: "object", properties: {} },
+    },
+    {
       name: "xero_list_contacts",
       description: "Search for vendors/contacts in Xero",
       inputSchema: {
@@ -253,7 +529,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
     },
     {
       name: "xero_create_bill",
-      description: "Create a bill/expense in Xero",
+      description: "Create a bill (accounts payable) in Xero - use for invoices you'll pay later",
       inputSchema: {
         type: "object",
         properties: {
@@ -270,6 +546,24 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
       },
     },
     {
+      name: "xero_create_expense",
+      description: "Create a spend money transaction (direct expense) in Xero - use for already-paid expenses like receipts",
+      inputSchema: {
+        type: "object",
+        properties: {
+          vendorName: { type: "string", description: "Name of the vendor" },
+          vendorEmail: { type: "string", description: "Email of the vendor (optional)" },
+          amount: { type: "number", description: "Total amount of the expense" },
+          description: { type: "string", description: "Description of the expense" },
+          accountCode: { type: "string", description: "Xero expense account code (e.g., '620' for meals)" },
+          date: { type: "string", description: "Transaction date (YYYY-MM-DD)" },
+          reference: { type: "string", description: "Reference number from the receipt" },
+          bankAccountId: { type: "string", description: "Xero bank account ID (optional, uses first available if not specified)" },
+        },
+        required: ["vendorName", "amount", "description"],
+      },
+    },
+    {
       name: "xero_attach_file",
       description: "Attach a file (PDF, image) to an existing Xero bill",
       inputSchema: {
@@ -279,6 +573,53 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
           filePath: { type: "string", description: "Path to the file to attach" },
         },
         required: ["invoiceId", "filePath"],
+      },
+    },
+    {
+      name: "xero_attach_file_to_expense",
+      description: "Attach a file (PDF, image) to an existing Xero expense (bank transaction)",
+      inputSchema: {
+        type: "object",
+        properties: {
+          bankTransactionId: { type: "string", description: "The Xero bank transaction ID" },
+          filePath: { type: "string", description: "Path to the file to attach" },
+        },
+        required: ["bankTransactionId", "filePath"],
+      },
+    },
+    {
+      name: "xero_list_users",
+      description: "List users in the Xero organization (for expense claims)",
+      inputSchema: { type: "object", properties: {} },
+    },
+    {
+      name: "xero_create_expense_claim",
+      description: "Create an expense claim for reimbursement - creates a receipt and submits it as an expense claim (deprecated Feb 2026)",
+      inputSchema: {
+        type: "object",
+        properties: {
+          vendorName: { type: "string", description: "Name of the vendor" },
+          vendorEmail: { type: "string", description: "Email of the vendor (optional)" },
+          amount: { type: "number", description: "Total amount of the expense" },
+          description: { type: "string", description: "Description of the expense" },
+          accountCode: { type: "string", description: "Xero expense account code (e.g., '620' for meals)" },
+          date: { type: "string", description: "Receipt date (YYYY-MM-DD)" },
+          reference: { type: "string", description: "Reference number from the receipt" },
+          userId: { type: "string", description: "Xero user ID to claim as (optional, uses first user if not specified)" },
+        },
+        required: ["vendorName", "amount", "description"],
+      },
+    },
+    {
+      name: "xero_attach_file_to_receipt",
+      description: "Attach a file (PDF, image) to an existing Xero receipt",
+      inputSchema: {
+        type: "object",
+        properties: {
+          receiptId: { type: "string", description: "The Xero receipt ID" },
+          filePath: { type: "string", description: "Path to the file to attach" },
+        },
+        required: ["receiptId", "filePath"],
       },
     },
   ],
@@ -297,6 +638,13 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         };
       }
 
+      case "xero_list_bank_accounts": {
+        const accounts = await xeroExpenses.listBankAccounts();
+        return {
+          content: [{ type: "text", text: JSON.stringify(accounts, null, 2) }],
+        };
+      }
+
       case "xero_list_contacts": {
         const contacts = await xeroExpenses.listContacts(args.search);
         return {
@@ -311,8 +659,43 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         };
       }
 
+      case "xero_create_expense": {
+        const result = await xeroExpenses.createExpense(args);
+        return {
+          content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+        };
+      }
+
       case "xero_attach_file": {
         const result = await xeroExpenses.attachFileToBill(args.invoiceId, args.filePath);
+        return {
+          content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+        };
+      }
+
+      case "xero_attach_file_to_expense": {
+        const result = await xeroExpenses.attachFileToExpense(args.bankTransactionId, args.filePath);
+        return {
+          content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+        };
+      }
+
+      case "xero_list_users": {
+        const users = await xeroExpenses.listUsers();
+        return {
+          content: [{ type: "text", text: JSON.stringify(users, null, 2) }],
+        };
+      }
+
+      case "xero_create_expense_claim": {
+        const result = await xeroExpenses.createExpenseClaimFromReceipt(args);
+        return {
+          content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+        };
+      }
+
+      case "xero_attach_file_to_receipt": {
+        const result = await xeroExpenses.attachFileToReceipt(args.receiptId, args.filePath);
         return {
           content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
         };
@@ -322,8 +705,11 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         return { content: [{ type: "text", text: `Unknown tool: ${name}` }] };
     }
   } catch (error) {
+    const errorMsg = error.response?.body
+      ? JSON.stringify(error.response.body, null, 2)
+      : error.message || JSON.stringify(error, null, 2);
     return {
-      content: [{ type: "text", text: `Error: ${error.message}` }],
+      content: [{ type: "text", text: `Error: ${errorMsg}` }],
       isError: true,
     };
   }
