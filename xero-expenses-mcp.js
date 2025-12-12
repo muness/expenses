@@ -31,6 +31,7 @@ class XeroExpensesMCP {
         "accounting.transactions",
         "accounting.contacts",
         "accounting.settings.read",
+        "accounting.attachments",
         "offline_access",
       ],
       // Note: Expense Claims API is deprecated and will be disabled Feb 2026

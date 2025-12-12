@@ -1,6 +1,8 @@
-# Process Starred Expense Emails
+# Process Business Expense Emails
 
-Process starred Gmail emails one at a time into Xero expense claims for reimbursement.
+Process starred Gmail emails into Xero expense claims. These are **business expenses for tax purposes**.
+
+**The email and its attachments are the SOURCE OF TRUTH** - extract all data (vendor, amount, date) from the email/attachment only. The attached invoice/receipt is the tax documentation.
 
 ## Instructions
 
@@ -25,9 +27,7 @@ Process starred Gmail emails one at a time into Xero expense claims for reimburs
 ## Notes
 - One email at a time - ask before moving to next
 - Be concise - just the key fields, no dumps
-- Use appropriate expense account codes (e.g., "620" for Meals & Entertainment)
-- Meal/restaurant expenses should be categorized as "Business Meals" (account 620)
+- **Never guess or infer data** - if amount/vendor unclear from email, ask me
+- Meal/restaurant expenses → "Business Meals" (account 620)
 - Create labels if they don't exist
-- Use `xero_create_expense_claim` for receipts (creates reimbursable expense claim)
-- Use `xero_create_bill` only for unpaid invoices (creates accounts payable)
 - Always attach the receipt PDF to the expense claim

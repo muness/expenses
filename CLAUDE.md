@@ -16,5 +16,29 @@ The `xero-expenses-mcp.js` file is a custom MCP server that I (Claude) own and c
 - `xero_attach_file_to_expense` - Attach files to spend money transactions
 - `xero_attach_file_to_receipt` - Attach files to receipts (for expense claims)
 
+### Re-authentication
+If OAuth scopes are modified in `xero-expenses-mcp.js`, delete `.xero-token.json` to force re-authentication with the new scopes.
+
+### Expense Claim User
+All expense claims are for **Muness Castle** (userId: `830afbab-8e01-4618-9ed2-6197d5768be5`). Always pass this userId when creating expense claims.
+
 ### Deprecation Notice
 The Expense Claims API is deprecated and will be disabled **February 2026**. Plan to migrate to an alternative solution before then.
+
+## HTML to PDF Tool
+
+The `html-to-pdf.cjs` script converts HTML files to PDF using Puppeteer (headless Chrome). Use this to convert email receipts to PDF format for tax records.
+
+### Usage
+```bash
+# Basic - outputs to same directory with .pdf extension
+node html-to-pdf.cjs /tmp/receipt.html
+
+# Specify output path
+node html-to-pdf.cjs /tmp/receipt.html /tmp/receipt.pdf
+```
+
+### When to Use
+- Email receipts that are HTML-only (no PDF attachment)
+- Preserves original email content for tax purposes
+- Outputs A4 format with margins
