@@ -24,3 +24,6 @@ xero-tokens/
 
 # Logs
 *.log
+
+# Amazon order processing state
+amazon-order-status.json
