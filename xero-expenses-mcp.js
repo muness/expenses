@@ -482,12 +482,16 @@ class XeroExpensesMCP {
     };
     const mimeType = mimeTypes[ext] || 'application/octet-stream';
 
+    // Generate unique idempotency key to avoid conflicts
+    const idempotencyKey = `receipt-${receiptId}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
     const response = await this.xero.accountingApi.createReceiptAttachmentByFileName(
       this.tenantId,
       receiptId,
       fileName,
       fileContent,
-      mimeType
+      idempotencyKey,
+      { headers: { 'Content-Type': mimeType } }
     );
 
     return {
