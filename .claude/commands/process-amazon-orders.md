@@ -176,7 +176,7 @@ xero_attach_file_to_receipt(receiptId, "/tmp/amazon-order-{order_number}.pdf")
 
 ## Notes
 
-- Always use userId: `830afbab-8e01-4618-9ed2-6197d5768be5` (Muness Castle)
+- Get Xero userId by calling `xero_list_users` (cache it for the session)
 - For multi-item orders, evaluate each item separately if prices differ significantly
 - If order has mixed business/personal items, only expense the business items
 - Be conservative - when in doubt, ask rather than auto-process

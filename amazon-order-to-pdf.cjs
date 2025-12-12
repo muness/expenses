@@ -20,7 +20,7 @@
  *   "estimated_tax": "3.73",
  *   "total_before_tax": "46.63",
  *   "payment_method": "Prime Visa",
- *   "payment_method_last_4": "4241",
+ *   "payment_method_last_4": "1234",
  *   "coupon_savings": "-2.55",        // optional
  *   "subscription_discount": "-2.81", // optional
  *   "recipient": {

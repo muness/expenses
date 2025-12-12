@@ -53,7 +53,7 @@ Process starred Gmail emails into Xero expenses using Claude Code.
 Start Claude Code in this directory:
 
 ```bash
-cd /Users/muness1/src/expenses
+cd /path/to/expenses
 claude
 ```
 

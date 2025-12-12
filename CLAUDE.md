@@ -20,7 +20,7 @@ The `xero-expenses-mcp.js` file is a custom MCP server that I (Claude) own and c
 If OAuth scopes are modified in `xero-expenses-mcp.js`, delete `.xero-token.json` to force re-authentication with the new scopes.
 
 ### Expense Claim User
-All expense claims are for **Muness Castle** (userId: `830afbab-8e01-4618-9ed2-6197d5768be5`). Always pass this userId when creating expense claims.
+Get the Xero user ID by calling `xero_list_users` and use the appropriate user for expense claims.
 
 ### Deprecation Notice
 The Expense Claims API is deprecated and will be disabled **February 2026**. Plan to migrate to an alternative solution before then.

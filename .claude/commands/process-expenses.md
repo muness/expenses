@@ -43,7 +43,7 @@ There MUST be an attachment.
 - **Do NOT ask for confirmation** - just process and continue to next
 - Be concise - one line summary per email
 - **Never guess or infer data** - if amount/vendor unclear from email, ask me
-- Always use userId: `830afbab-8e01-4618-9ed2-6197d5768be5` (Muness Castle)
+- Get Xero userId by calling `xero_list_users` (cache it for the session)
 - Create Gmail labels if they don't exist
 - Always attach the receipt PDF to the receipt
 

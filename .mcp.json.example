@@ -12,8 +12,16 @@
       "args": ["xero-expenses-mcp.js"],
       "env": {
         "XERO_CLIENT_ID": "your_client_id",
-        "XERO_CLIENT_SECRET": "your_client_secret",
-        "XERO_REDIRECT_URI": "https://your-ngrok-url/callback"
+        "XERO_REDIRECT_URI": "http://localhost:3000/callback"
+      }
+    },
+    "amazon-orders": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": ["amazon-orders-mcp"],
+      "env": {
+        "AMAZON_USERNAME": "your-amazon-email@example.com",
+        "AMAZON_PASSWORD": "your-amazon-password"
       }
     }
   }
