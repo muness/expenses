@@ -15,7 +15,7 @@ Process starred Gmail emails into Xero expenses. These are **business expenses f
    - Attach the PDF using `xero_attach_file_to_receipt`
    - Label email "xero/processed", unstar
    - **Save the receiptId** for batching at the end
-4. **If not a receipt/invoice**: label "xero/skipped", unstar, tell me briefly why
+4. **If not a receipt/invoice**: label "xero/skipped" (keep star), tell me briefly why
 5. **Automatically continue** to the next starred email until none remain
 6. **After ALL receipts created**: Inform the user they can see all the expenses under the current claim.
 
