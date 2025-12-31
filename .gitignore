@@ -27,3 +27,6 @@ xero-tokens/
 
 # Amazon order processing state
 amazon-order-status.json
+
+# Superego
+.superego/

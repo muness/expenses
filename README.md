@@ -8,11 +8,13 @@ Process Gmail receipts and Amazon orders into Xero expenses using Claude Code.
 - Node.js 18+
 - Xero account
 - Gmail account
+- Clockify account (optional, for invoice generation)
 
 ## Features
 
 - **Gmail Expenses**: Star emails with receipts/invoices, run `/process-expenses` to create Xero receipts
 - **Amazon Orders**: Run `/process-amazon-orders` to review recent Amazon purchases and expense business items
+- **Invoice Generation**: Run `/generate-invoice-from-clockify` to create Xero invoices from Clockify time entries
 
 ## Setup
 
@@ -58,7 +60,32 @@ Process Gmail receipts and Amazon orders into Xero expenses using Claude Code.
    XERO_REDIRECT_URI=http://localhost:3000/callback
    ```
 
-### 3. Amazon Orders (Optional)
+### 3. Clockify API (Optional)
+
+To generate invoices from Clockify time entries:
+
+1. Go to [Clockify Settings](https://app.clockify.me/user/settings)
+2. Scroll to **API** section
+3. Click **Generate** to create an API key
+4. Add to your `.mcp.json`:
+   ```json
+   {
+     "mcpServers": {
+       "clockify-time-entries": {
+         "type": "stdio",
+         "command": "npx",
+         "args": ["-y", "mcp_clockify@latest"],
+         "env": {
+           "CLOCKIFY_API_KEY": "your-clockify-api-key"
+         }
+       }
+     }
+   }
+   ```
+
+**Note**: Use `mcp_clockify` (not `@https-eduardo/clockify-mcp-server` or `@aot-tech/clockify-mcp-server`) - it's the most reliable npm package.
+
+### 4. Amazon Orders (Optional)
 
 To process Amazon orders, add your Amazon credentials to `.env`:
 
@@ -69,7 +96,7 @@ AMAZON_PASSWORD=your-amazon-password
 
 See [amazon-order-mcp](https://github.com/muness/amazon-order-mcp) for the MCP server.
 
-### 4. First Run
+### 5. First Run
 
 ```bash
 npm install
@@ -98,6 +125,21 @@ Review recent Amazon orders and create receipts for business expenses:
 
 You'll be prompted for your Amazon 2FA code if enabled.
 
+### Generate Invoice from Clockify
+
+Create a Xero invoice based on Clockify time entries for a specific month:
+
+```
+/generate-invoice-from-clockify
+```
+
+You'll be prompted for:
+- Month and year
+- Client name
+- Hourly rate
+
+The command will fetch your billable hours from Clockify, show a breakdown by project, and create a draft invoice in Xero.
+
 ### Example Commands
 
 - `"Show me my starred emails"` - List starred emails
@@ -108,15 +150,16 @@ You'll be prompted for your Amazon 2FA code if enabled.
 
 ```
 expenses/
-├── .claude/commands/        # Slash commands
+├── .claude/commands/                  # Slash commands
 │   ├── process-expenses.md
-│   └── process-amazon-orders.md
-├── .env                     # Your credentials (not in git)
-├── .env.example             # Template
-├── .mcp.json                # MCP server configuration
-├── amazon-order-to-pdf.cjs  # PDF generator for Amazon orders
-├── html-to-pdf.cjs          # Generic HTML to PDF converter
-├── xero-expenses-mcp.js     # Xero MCP server
+│   ├── process-amazon-orders.md
+│   └── generate-invoice-from-clockify.md
+├── .env                               # Your credentials (not in git)
+├── .env.example                       # Template
+├── .mcp.json                          # MCP server configuration
+├── amazon-order-to-pdf.cjs            # PDF generator for Amazon orders
+├── html-to-pdf.cjs                    # Generic HTML to PDF converter
+├── xero-expenses-mcp.js               # Xero MCP server
 └── README.md
 ```
 
@@ -137,6 +180,12 @@ expenses/
 - Ensure you're running Claude Code from this directory
 - Check that dependencies are installed: `npm install`
 
+### Clockify MCP not working
+- Verify API key is correct in `.mcp.json`
+- Use `mcp_clockify@latest` (not other Clockify packages)
+- Get API key from [Clockify Settings](https://app.clockify.me/user/settings)
+- Check that projects are marked as billable in Clockify if they should be invoiced
+
 ## Acknowledgments
 
 This project relies on several excellent tools and libraries:
@@ -145,6 +194,7 @@ This project relies on several excellent tools and libraries:
 - [@gongrzhe/server-gmail-autoauth-mcp](https://www.npmjs.com/package/@gongrzhe/server-gmail-autoauth-mcp) - Gmail MCP server with auto-authentication
 - [xero-node](https://github.com/XeroAPI/xero-node) - Official Xero API SDK
 - [amazon-orders](https://github.com/alexdlaird/amazon-orders) - Amazon order history library (via [amazon-order-mcp](https://github.com/muness/amazon-order-mcp))
+- [mcp_clockify](https://www.npmjs.com/package/mcp_clockify) - Clockify MCP server for time tracking integration
 
 ## License
 
