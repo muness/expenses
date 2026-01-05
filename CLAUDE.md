@@ -22,6 +22,16 @@ If OAuth scopes are modified in `xero-expenses-mcp.js`, delete `.xero-token.json
 ### Expense Claim User
 Get the Xero user ID by calling `xero_list_users` and use the appropriate user for expense claims.
 
+### IMPORTANT: Always Use Receipts, Not Expenses
+**All business expenses should be created as receipts (`xero_create_receipt`) and batched into expense claims (`xero_submit_expense_claim`).**
+
+Do NOT use `xero_create_expense` (bank transactions/spend money) - that's for expenses paid directly from a bank account. The user's expenses are paid via personal credit card and reimbursed through expense claims.
+
+Correct workflow:
+1. `xero_create_receipt` for each expense
+2. `xero_attach_file_to_receipt` to attach the PDF
+3. `xero_submit_expense_claim` with all receipt IDs at the end
+
 ### Deprecation Notice
 The Expense Claims API is deprecated and will be disabled **February 2026**. Plan to migrate to an alternative solution before then.
 
