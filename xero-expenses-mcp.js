@@ -563,6 +563,81 @@ class XeroExpensesMCP {
       success: true,
     };
   }
+
+  async createInvoice({ customerName, customerEmail, quantity, unitPrice, description, accountCode, date, dueDate, reference }) {
+    await this.ensureAuthenticated();
+
+    // Find or create contact
+    let contacts = await this.listContacts(customerName);
+    let contact = contacts.find(c => c.name.toLowerCase() === customerName.toLowerCase());
+
+    if (!contact) {
+      contact = await this.createContact(customerName, customerEmail || undefined);
+    }
+
+    // Create the invoice (ACCREC = accounts receivable)
+    const invoice = {
+      type: "ACCREC",
+      contact: { contactID: contact.contactId },
+      date: date || new Date().toISOString().split("T")[0],
+      dueDate: dueDate || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
+      reference: reference || undefined,
+      lineItems: [
+        {
+          description: description || "Services",
+          quantity: quantity || 1,
+          unitAmount: unitPrice,
+          accountCode: accountCode || "200", // Default sales account
+        },
+      ],
+      status: "DRAFT",
+    };
+
+    const response = await this.xero.accountingApi.createInvoices(this.tenantId, { invoices: [invoice] });
+    const created = response.body.invoices[0];
+
+    return {
+      invoiceId: created.invoiceID,
+      invoiceNumber: created.invoiceNumber,
+      customer: created.contact.name,
+      total: created.total,
+      status: created.status,
+      date: created.date,
+      dueDate: created.dueDate,
+    };
+  }
+
+  async attachFileToInvoice(invoiceId, filePath) {
+    await this.ensureAuthenticated();
+
+    const fileName = basename(filePath);
+    const fileContent = readFileSync(filePath);
+
+    const ext = fileName.split('.').pop().toLowerCase();
+    const mimeTypes = {
+      'pdf': 'application/pdf',
+      'png': 'image/png',
+      'jpg': 'image/jpeg',
+      'jpeg': 'image/jpeg',
+      'gif': 'image/gif',
+    };
+    const mimeType = mimeTypes[ext] || 'application/octet-stream';
+
+    const response = await this.xero.accountingApi.createInvoiceAttachmentByFileName(
+      this.tenantId,
+      invoiceId,
+      fileName,
+      fileContent,
+      true, // includeOnline
+      mimeType
+    );
+
+    return {
+      attachmentId: response.body.attachments[0]?.attachmentID,
+      fileName: fileName,
+      success: true,
+    };
+  }
 }
 
 // MCP Server setup
@@ -690,6 +765,37 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
         required: ["receiptId", "filePath"],
       },
     },
+    {
+      name: "xero_create_invoice",
+      description: "Create a sales invoice (accounts receivable) in Xero - use for invoices you send to customers",
+      inputSchema: {
+        type: "object",
+        properties: {
+          customerName: { type: "string", description: "Name of the customer" },
+          customerEmail: { type: "string", description: "Email of the customer (optional)" },
+          quantity: { type: "number", description: "Quantity (e.g., hours worked)" },
+          unitPrice: { type: "number", description: "Price per unit (e.g., hourly rate)" },
+          description: { type: "string", description: "Description of the goods/services" },
+          accountCode: { type: "string", description: "Xero revenue account code (e.g., '200' for sales)" },
+          date: { type: "string", description: "Invoice date (YYYY-MM-DD)" },
+          dueDate: { type: "string", description: "Due date (YYYY-MM-DD)" },
+          reference: { type: "string", description: "Reference or PO number" },
+        },
+        required: ["customerName", "quantity", "unitPrice", "description"],
+      },
+    },
+    {
+      name: "xero_attach_file_to_invoice",
+      description: "Attach a file (PDF, image) to an existing Xero invoice",
+      inputSchema: {
+        type: "object",
+        properties: {
+          invoiceId: { type: "string", description: "The Xero invoice ID" },
+          filePath: { type: "string", description: "Path to the file to attach" },
+        },
+        required: ["invoiceId", "filePath"],
+      },
+    },
   ],
 }));
 
@@ -764,6 +870,20 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
       case "xero_attach_file_to_receipt": {
         const result = await xeroExpenses.attachFileToReceipt(args.receiptId, args.filePath);
+        return {
+          content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+        };
+      }
+
+      case "xero_create_invoice": {
+        const result = await xeroExpenses.createInvoice(args);
+        return {
+          content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+        };
+      }
+
+      case "xero_attach_file_to_invoice": {
+        const result = await xeroExpenses.attachFileToInvoice(args.invoiceId, args.filePath);
         return {
           content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
         };

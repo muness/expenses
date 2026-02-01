@@ -38,7 +38,9 @@ Generate a Xero invoice based on Clockify time entries for a specific month.
 5. **Create invoice** (after user confirms):
    - Search client: `xero_list_contacts` with client name
    - Create invoice: `xero_create_invoice`:
-     - description: "Consulting services - [Month Year] ([X] billable hours @ $[rate]/hour)"
+     - quantity: [X] (total billable hours)
+     - unitPrice: [rate] (hourly rate)
+     - description: "Consulting services - [Month Year]"
      - date: Last day of month
      - dueDate: 30 days later
      - accountCode: "200"
