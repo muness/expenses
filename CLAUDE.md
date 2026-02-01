@@ -2,7 +2,7 @@
 
 ## MCP Server
 
-The `xero-expenses-mcp.js` file is a custom MCP server that I (Claude) own and can modify. If the current functionality doesn't meet the user's needs, I should update the MCP code directly.
+The MCP server lives at `/Users/muness1/src/xero-expenses-mcp/index.js`. If the current functionality doesn't meet the user's needs, update the MCP code there directly.
 
 ### Current Capabilities
 
@@ -27,7 +27,7 @@ The `xero-expenses-mcp.js` file is a custom MCP server that I (Claude) own and c
 - `xero_create_expense` - Create spend money transactions (DO NOT USE - see below)
 
 ### Re-authentication
-If OAuth scopes are modified in `xero-expenses-mcp.js`, delete `.xero-token.json` to force re-authentication with the new scopes.
+If OAuth scopes are modified, delete `/Users/muness1/src/xero-expenses-mcp/.xero-token.json` to force re-authentication with the new scopes.
 
 ### IMPORTANT: Do NOT Use `xero_create_expense`
 `xero_create_expense` creates bank transactions (spend money) - that's for expenses paid directly from a business bank account. The user's expenses are paid via **personal credit card** and need reimbursement.
@@ -43,6 +43,11 @@ Use `/process-expenses-bills` command. Survives Feb 2026 deprecation.
 4. Only call `xero_submit_bill` when user explicitly asks
 
 Vendor for the bill = "Muness Castle" (self-billing for reimbursement).
+
+**IMPORTANT: Xero has a 10 attachment limit per bill.** When processing more than 9 expenses:
+- Create multiple bills with ≤9 line items each
+- Name them descriptively: "Expenses [Month Year] - Part 1 (Category)", "Part 2 (Category)", etc.
+- Group by category (Software, Electronics, Meals) when possible for cleaner organization
 
 ### Legacy: Expense Claims Workflow (deprecated Feb 2026)
 Use `/process-expenses` command.

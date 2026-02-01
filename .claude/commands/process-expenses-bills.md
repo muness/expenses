@@ -4,7 +4,14 @@ Process starred Gmail emails into Xero as bill line items. This is the **future-
 
 ## How It Works
 
-Expenses are added as line items to a single DRAFT bill. When you're ready to get reimbursed, submit the bill for approval.
+Expenses are added as line items to DRAFT bills. When you're ready to get reimbursed, submit the bills for approval.
+
+**IMPORTANT: Xero has a 10 attachment limit per bill.** When processing more than 9 expenses, create multiple bills:
+- Bill 1: First 9 expenses (or fewer)
+- Bill 2: Next 9 expenses
+- etc.
+
+Name them descriptively, e.g., "Expenses January 2026 - Part 1 (Software)", "Expenses January 2026 - Part 2 (Electronics)".
 
 ## Instructions
 
@@ -60,7 +67,7 @@ When user asks to submit/finalize:
 - Be concise - one line summary per email
 - **Never guess or infer data** - if amount/vendor unclear from email, ask me
 - Create Gmail labels if they don't exist
-- Multiple receipts = multiple attachments on same bill (that's fine)
+- **Max 9 line items per bill** (Xero's 10 attachment limit) - create multiple bills if needed
 - Bill vendor should be "Muness Castle" (self-billing for reimbursement)
 
 ## Final Output
