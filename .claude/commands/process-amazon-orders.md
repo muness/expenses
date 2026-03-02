@@ -21,7 +21,7 @@ Review Amazon orders from the past month and create Xero receipts for business e
    - Books (technical, business)
    - Cloud services, domains, hosting
 
-   **LOW confidence (below 30)** - Auto-skip:
+   **LOW confidence (below 30)** - Still ask user before skipping (NEVER auto-skip):
    - Food/groceries (unless clearly catering)
    - Clothing/personal items
    - Home goods, furniture (unless clearly office)
@@ -179,6 +179,9 @@ xero_attach_file_to_receipt(receiptId, "/tmp/amazon-order-{order_number}.pdf")
 - Get Xero userId by calling `xero_list_users` (cache it for the session)
 - For multi-item orders, evaluate each item separately if prices differ significantly
 - If order has mixed business/personal items, only expense the business items
-- Be conservative - when in doubt, ask rather than auto-process
+- **NEVER auto-skip** - always ask the user, even for low-confidence items
+- **Gift card orders**: `gift_card` field means payment method, not a return. When `grand_total` is null/0 (fully paid by gift card), compute expense as subtotal + tax - promos. Always ask if it's a business expense.
+- **Returned orders**: Only skip if user explicitly confirms it was returned. `refund_total` present does NOT automatically mean returned.
+- **Bills workflow**: Use `xero_add_line_item_to_bill` + `xero_attach_file`, not `xero_create_receipt` (deprecated Feb 2026)
 - Save status file after each order (not at the end) to preserve progress
 - **ALWAYS generate and attach PDFs** - receipts without attachments are incomplete!

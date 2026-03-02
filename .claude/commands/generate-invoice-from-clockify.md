@@ -14,12 +14,11 @@ Generate a Xero invoice based on Clockify time entries for a specific month.
    - Fetch entries for the month: `list-clockify-time-entries` with date range (first to last day of month in UTC)
 
 3. **Calculate billable hours**:
-   - Count entries where `billable: true`
    - Parse durations: `PT8H` = 8 hours, `PT1H` = 1 hour
-   - **Show breakdown by project** (with project names from `list-clockify-projects`)
-   - **List non-billable entries** that were excluded
-   - **Ask user**: "Are any of the non-billable entries actually billable?"
-   - Recalculate if needed based on user feedback
+   - **Show ALL entries by project** — both billable=true and billable=false
+   - **Do NOT assume billable=false means non-billable to the client** — Clockify flags may not reflect the actual billing arrangement
+   - Ask user to confirm which projects/entries to include before calculating total
+   - Recalculate based on user confirmation
 
 4. **Show summary**:
    ```
@@ -52,5 +51,6 @@ Generate a Xero invoice based on Clockify time entries for a specific month.
 
 - **Never hardcode client name or rate** - always prompt for them
 - Invoice created as DRAFT - user reviews in Xero before sending
-- If Clockify has wrong billable flags, suggest updating project settings
+- **Clockify billable flags are unreliable** - always show all hours and confirm with user which to include
+- Suggest fixing Clockify project settings if flags are consistently wrong
 - Be concise - show summary tables, not verbose explanations

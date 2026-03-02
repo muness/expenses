@@ -32,7 +32,7 @@ Name them descriptively, e.g., "Expenses January 2026 - Part 1 (Software)", "Exp
    - Attach the PDF using `xero_attach_file` (same invoiceId)
    - Label email "xero/processed", unstar
 
-5. **If not a receipt/invoice**: label "xero/skipped" (keep star), tell me briefly why
+5. **If not a receipt/invoice**: **ASK the user** before labeling skipped — do not auto-skip. Exception: obvious non-expenses like bank reward certificates, personal email exchanges, or renewal *notices* (not receipts) can be skipped with explanation.
 
 6. **Automatically continue** to the next starred email until none remain
 
@@ -69,6 +69,8 @@ When user asks to submit/finalize:
 - Create Gmail labels if they don't exist
 - **Max 9 line items per bill** (Xero's 10 attachment limit) - create multiple bills if needed
 - Bill vendor should be "Muness Castle" (self-billing for reimbursement)
+- **Renewal notices** (e.g. Zoom "your account will renew on...") are NOT receipts — skip them and note the charge will arrive later
+- **Amazon gift card orders**: `gift_card` field in order data just means payment method, NOT a return. `grand_total` may be $0 or null when fully paid by gift card — use subtotal+tax-promos as the expense amount. Always ask user if it's a business expense, don't auto-skip.
 
 ## Final Output
 
