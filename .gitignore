@@ -30,3 +30,8 @@ amazon-order-status.json
 
 # Superego
 .superego/
+
+# Local agent/session state
+.claude/attn_state.json
+.claude/settings.local.json
+.wm/

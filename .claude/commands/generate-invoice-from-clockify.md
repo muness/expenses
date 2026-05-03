@@ -19,6 +19,7 @@ Generate a Xero invoice based on Clockify time entries for a specific month.
    - **Do NOT assume billable=false means non-billable to the client** — Clockify flags may not reflect the actual billing arrangement
    - Ask user to confirm which projects/entries to include before calculating total
    - Recalculate based on user confirmation
+   - If the user says “all hours” or corrects an exclusion, include every Clockify entry for the month regardless of Clockify billable flag
 
 4. **Show summary**:
    ```
@@ -37,6 +38,9 @@ Generate a Xero invoice based on Clockify time entries for a specific month.
 5. **Create invoice** (after user confirms):
    - Search client: `xero_list_contacts` with client name
    - Create invoice: `xero_create_invoice`:
+   - **Create exactly one invoice with exactly one line item** for the total confirmed hours
+   - **Do not create supplemental adjustment invoices** unless the user explicitly requests separate invoices
+   - If an invoice was created with the wrong hours and is still DRAFT, update/delete/recreate so the final state is one consolidated draft invoice
      - quantity: [X] (total billable hours)
      - unitPrice: [rate] (hourly rate)
      - description: "Consulting services - [Month Year]"
@@ -54,3 +58,4 @@ Generate a Xero invoice based on Clockify time entries for a specific month.
 - **Clockify billable flags are unreliable** - always show all hours and confirm with user which to include
 - Suggest fixing Clockify project settings if flags are consistently wrong
 - Be concise - show summary tables, not verbose explanations
+- Default correction path: one consolidated draft invoice, one line item, all user-confirmed monthly hours

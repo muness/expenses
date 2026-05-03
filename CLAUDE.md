@@ -20,6 +20,14 @@ The MCP server lives at `/Users/muness1/src/xero-expenses-mcp/index.js`. If the 
 - `xero_attach_file_to_receipt` - Attach files to receipts
 - `xero_submit_expense_claim` - Batch receipts into expense claim
 
+**Sales Invoices:**
+- `xero_create_invoice` - Create a DRAFT sales invoice (accounts receivable)
+- `xero_list_draft_invoices` - Find draft sales invoices by customer/reference
+- `xero_get_invoice` - Get sales invoice details including line items
+- `xero_update_draft_invoice` - Correct a DRAFT sales invoice as one consolidated invoice with one line item
+- `xero_delete_draft_invoice` - Delete an incorrect DRAFT sales invoice
+
+
 **Other:**
 - `xero_list_accounts` - List expense account categories
 - `xero_list_bank_accounts` - List bank accounts
