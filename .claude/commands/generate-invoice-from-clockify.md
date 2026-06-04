@@ -51,6 +51,15 @@ Generate a Xero invoice based on Clockify time entries for a specific month.
 
 6. **Output invoice details**: number, amount, status, due date
 
+7. **Ask about nonworked-hours completeness entries**:
+   - After invoice creation, ask whether the user wants nonworked hours recorded for completeness checks
+   - Do not mention client names in this prompt
+   - If yes, use the Clockify MCP to:
+     - Find the non-billable/nonworking project/task
+     - Calculate gaps needed so each relevant work week shows 40 total recorded hours
+     - Create billable=false entries for the gap hours only
+     - Prefer the nonworking task when the MCP supports task assignment; otherwise use the nonworking project and description
+
 ## Notes
 
 - **Never hardcode client name or rate** - always prompt for them
@@ -59,3 +68,4 @@ Generate a Xero invoice based on Clockify time entries for a specific month.
 - Suggest fixing Clockify project settings if flags are consistently wrong
 - Be concise - show summary tables, not verbose explanations
 - Default correction path: one consolidated draft invoice, one line item, all user-confirmed monthly hours
+- After creating the invoice, ask whether to add nonworked-hours completeness entries; keep that prompt generic and client-name-free
