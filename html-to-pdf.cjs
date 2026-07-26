@@ -16,7 +16,18 @@
  */
 
 const puppeteer = require('puppeteer');
+const fs = require('fs');
 const path = require('path');
+
+function chromeExecutablePath() {
+  const candidates = [
+    process.env.PUPPETEER_EXECUTABLE_PATH,
+    '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+    '/Applications/Chromium.app/Contents/MacOS/Chromium',
+  ].filter(Boolean);
+
+  return candidates.find((candidate) => fs.existsSync(candidate));
+}
 
 async function htmlToPdf(inputPath, outputPath) {
   // Resolve paths
@@ -28,7 +39,10 @@ async function htmlToPdf(inputPath, outputPath) {
   console.log(`Converting: ${inputFile}`);
   console.log(`Output: ${outputFile}`);
 
-  const browser = await puppeteer.launch({ headless: 'new' });
+  const browser = await puppeteer.launch({
+    headless: 'new',
+    executablePath: chromeExecutablePath(),
+  });
   try {
     const page = await browser.newPage();
     await page.goto(`file://${inputFile}`, { waitUntil: 'networkidle0' });

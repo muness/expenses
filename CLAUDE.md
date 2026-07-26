@@ -42,22 +42,24 @@ If OAuth scopes are modified, delete `/Users/muness1/src/xero-expenses-mcp/.xero
 
 ## Expense Workflows
 
-### Recommended: Bills Workflow (future-proof)
-Use `/process-expenses-bills` command. Survives Feb 2026 deprecation.
+Business identity configuration lives in the project `.env` or a mounted 1Password Environment: `EXPENSE_OWNER_NAME`, `EXPENSE_OWNER_EMAIL`, `XERO_EXPENSE_USER_ID`, and `XERO_REIMBURSEMENT_VENDOR`. Do not hardcode these values. `/generate-invoice-from-clockify` prompts for the client name and hourly rate at runtime; this repo intentionally has no client list.
+
+### Bills Workflow
+Use `/process-expenses-bills` command only when the user explicitly asks for bills or invokes `process-expenses-bills`. Survives Feb 2026 deprecation.
 
 1. `xero_list_draft_bills` - find existing draft or create new with `xero_create_bill`
 2. For each expense: `xero_add_line_item_to_bill` + `xero_attach_file`
 3. **STOP** - report the bill total and wait
 4. Only call `xero_submit_bill` when user explicitly asks
 
-Vendor for the bill = "Muness Castle" (self-billing for reimbursement).
+Vendor for the bill = `XERO_REIMBURSEMENT_VENDOR` (self-billing for reimbursement).
 
 **IMPORTANT: Xero has a 10 attachment limit per bill.** When processing more than 9 expenses:
 - Create multiple bills with ≤9 line items each
 - Name them descriptively: "Expenses [Month Year] - Part 1 (Category)", "Part 2 (Category)", etc.
 - Group by category (Software, Electronics, Meals) when possible for cleaner organization
 
-### Legacy: Expense Claims Workflow (deprecated Feb 2026)
+### Receipt Expense Claims Workflow (deprecated Feb 2026)
 Use `/process-expenses` command.
 
 1. `xero_create_receipt` for each expense
@@ -65,11 +67,12 @@ Use `/process-expenses` command.
 3. **STOP** - report the receipt IDs to the user and wait
 4. Only call `xero_submit_expense_claim` when user explicitly asks
 
-Get Xero user ID by calling `xero_list_users`.
+Get `XERO_EXPENSE_USER_ID` and `EXPENSE_OWNER_EMAIL` from the project configuration and verify them with `xero_list_users`. Never default to the first returned Xero user; stop if the configured user is not present.
 
 ### Critical Rules (both workflows)
 - **Do NOT automatically submit** - user may have more expenses to add
 - All expenses paid via personal credit card, not business bank account
+- If the user asks for `/process-expenses`, expense receipts, claims, or reimbursements, do not create Xero bills unless the user explicitly changes the workflow.
 
 ## HTML to PDF Tool
 

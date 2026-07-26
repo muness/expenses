@@ -37,6 +37,16 @@ const fs = require('fs');
 const path = require('path');
 const puppeteer = require('puppeteer');
 
+function chromeExecutablePath() {
+  const candidates = [
+    process.env.PUPPETEER_EXECUTABLE_PATH,
+    '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+    '/Applications/Chromium.app/Contents/MacOS/Chromium',
+  ].filter(Boolean);
+
+  return candidates.find((candidate) => fs.existsSync(candidate));
+}
+
 /**
  * Format a date string to "Month Day, Year" format
  */
@@ -210,7 +220,10 @@ async function generateOrderPdf(order, outputPath) {
   fs.writeFileSync(htmlPath, html);
 
   // Convert to PDF using Puppeteer
-  const browser = await puppeteer.launch({ headless: 'new' });
+  const browser = await puppeteer.launch({
+    headless: 'new',
+    executablePath: chromeExecutablePath(),
+  });
   const page = await browser.newPage();
   await page.setContent(html, { waitUntil: 'networkidle0' });
   await page.pdf({

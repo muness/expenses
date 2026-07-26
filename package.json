@@ -4,7 +4,10 @@
   "description": "Gmail to Xero expense processing agent",
   "type": "module",
   "scripts": {
-    "test-auth": "node test-auth.js"
+    "test-auth": "node test-auth.js",
+    "amazon-status:migrate": "node scripts/amazon-status.mjs migrate",
+    "amazon-status:summary": "node scripts/amazon-status.mjs summary",
+    "validate:workflows": "node scripts/validate-expense-workflows.mjs"
   },
   "keywords": [
     "expenses",

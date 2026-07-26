@@ -27,6 +27,8 @@ xero-tokens/
 
 # Amazon order processing state
 amazon-order-status.json
+amazon-order-status.sqlite
+amazon-order-status.sqlite-*
 
 # Superego
 .superego/

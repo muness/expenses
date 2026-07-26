@@ -2,11 +2,16 @@
 
 Review Amazon orders from the past month and create Xero receipts for business expenses WITH PDF attachments.
 
+Before starting, load `EXPENSE_OWNER_NAME`, `EXPENSE_OWNER_EMAIL`, and `XERO_EXPENSE_USER_ID` from the project `.env` or its mounted 1Password Environment. Do not hardcode the person's name, email, or Xero user ID in this recipe.
+
 ## Instructions
 
 1. **Login to Amazon** first using `amazon_login` - ASK THE USER for their OTP code from their authenticator app
 
-2. **Load status file** from `amazon-order-status.json` in the current directory (create if doesn't exist)
+2. **Load order status**:
+   - Prefer `amazon-order-status.sqlite` when present; use `node scripts/amazon-status.mjs get <order_number>` / `upsert <order_number> '<json>'` for reads and writes
+   - If SQLite has not been initialized, load `amazon-order-status.json` in the current directory (create if it doesn't exist)
+   - To initialize SQLite from JSON, run `npm run amazon-status:migrate`
 
 3. **Process in 3-day batches**, going back 30 days from today:
    - Use `amazon_get_order_history(time_filter="last30", full_details=true)`
@@ -139,7 +144,18 @@ node html-to-pdf.cjs /tmp/amazon-order-{order_number}.html /tmp/amazon-order-{or
 xero_attach_file_to_receipt(receiptId, "/tmp/amazon-order-{order_number}.pdf")
 ```
 
-## Status File Format (amazon-order-status.json)
+## Status Storage
+
+SQLite is preferred for growing history:
+
+```bash
+npm run amazon-status:migrate
+npm run amazon-status:summary
+node scripts/amazon-status.mjs get 111-1234567-1234567
+node scripts/amazon-status.mjs upsert 111-1234567-1234567 '{"status":"processed","item":"USB-C Hub Adapter"}'
+```
+
+Legacy JSON format (`amazon-order-status.json`):
 
 ```json
 {
@@ -176,12 +192,13 @@ xero_attach_file_to_receipt(receiptId, "/tmp/amazon-order-{order_number}.pdf")
 
 ## Notes
 
-- Get Xero userId by calling `xero_list_users` (cache it for the session)
+- Get the configured `XERO_EXPENSE_USER_ID` and verify it by calling `xero_list_users` (cache it for the session). Never default to the first returned Xero user; stop if the configured user is not present or its email does not match `EXPENSE_OWNER_EMAIL`.
 - For multi-item orders, evaluate each item separately if prices differ significantly
 - If order has mixed business/personal items, only expense the business items
 - **NEVER auto-skip** - always ask the user, even for low-confidence items
 - **Gift card orders**: `gift_card` field means payment method, not a return. When `grand_total` is null/0 (fully paid by gift card), compute expense as subtotal + tax - promos. Always ask if it's a business expense.
 - **Returned orders**: Only skip if user explicitly confirms it was returned. `refund_total` present does NOT automatically mean returned.
-- **Bills workflow**: Use `xero_add_line_item_to_bill` + `xero_attach_file`, not `xero_create_receipt` (deprecated Feb 2026)
+- This workflow creates Xero receipts only. Do not create Xero bills, draft bills, or bill line items unless the user explicitly switches to `process-expenses-bills`.
+- Do not batch receipts into an expense claim or submit an expense claim unless the user explicitly asks for that step.
 - Save status file after each order (not at the end) to preserve progress
 - **ALWAYS generate and attach PDFs** - receipts without attachments are incomplete!

@@ -1,13 +1,13 @@
 # Expense Agent
 
-Process Gmail receipts and Amazon orders into Xero expenses using Claude Code.
+Process Gmail receipts and Amazon orders into Xero expenses using Codex/Claude.
 
 ## Requirements
 
-- [Claude Code](https://claude.ai/claude-code) CLI
+- Codex or [Claude Code](https://claude.ai/claude-code) CLI
 - Node.js 18+
 - Xero account
-- Gmail account
+- Gmail account connected through the Codex Gmail plugin/app (`@gmail`)
 - Clockify account (optional, for invoice generation)
 
 ## Features
@@ -18,31 +18,15 @@ Process Gmail receipts and Amazon orders into Xero expenses using Claude Code.
 
 ## Setup
 
-### 1. Gmail API Credentials
+### 1. Gmail Plugin
 
-1. Go to [Google Cloud Console](https://console.cloud.google.com/)
-2. Create a new project (or select existing)
-3. Enable the Gmail API:
-   - Navigate to **APIs & Services** → **Library**
-   - Search for "Gmail API" → Click **Enable**
-4. Configure OAuth consent screen:
-   - Go to **APIs & Services** → **OAuth consent screen**
-   - Choose **External** (or **Internal** if using Google Workspace)
-   - Fill in app name and your email
-   - Add scope: `https://www.googleapis.com/auth/gmail.modify`
-   - Add yourself as a test user
-5. Create OAuth credentials:
-   - Go to **APIs & Services** → **Credentials**
-   - Click **Create Credentials** → **OAuth Client ID**
-   - Application type: **Desktop app**
-   - Download the JSON file
-   - Rename to `gcp-oauth.keys.json`
-6. Run Gmail authentication:
-   ```bash
-   mkdir -p ~/.gmail-mcp
-   mv gcp-oauth.keys.json ~/.gmail-mcp/
-   npx @gongrzhe/server-gmail-autoauth-mcp auth
-   ```
+Gmail access uses the configured Codex Gmail plugin/app (`@gmail`), not the legacy Gmail MCP server.
+
+In Codex:
+
+1. Confirm the Gmail plugin is installed and connected.
+2. Use `$process-expenses` or `$process-expenses-bills` from this repo.
+3. The workflows use Gmail plugin actions such as native search, message reads, attachment reads, and label changes.
 
 ### 2. Xero API Credentials
 
@@ -96,7 +80,27 @@ AMAZON_PASSWORD=your-amazon-password
 
 See [amazon-order-mcp](https://github.com/muness/amazon-order-mcp) for the MCP server.
 
-### 5. First Run
+### 5. 1Password MCP (Optional)
+
+This repo can use the local 1Password MCP server to manage 1Password Environments without exposing raw secrets to the agent.
+
+Requirements:
+
+- 1Password desktop app installed
+- 1Password Settings > Labs > MCP Server enabled
+- 1Password Settings > Developer > Integrate with MCP clients configured
+
+The local config uses:
+
+```json
+{
+  "command": "/Applications/1Password.app/Contents/MacOS/1password-mcp"
+}
+```
+
+After changing MCP configuration, restart Codex.
+
+### 6. First Run
 
 ```bash
 npm install
@@ -124,6 +128,15 @@ Review recent Amazon orders and create receipts for business expenses:
 ```
 
 You'll be prompted for your Amazon 2FA code if enabled.
+
+Amazon order processing state can be kept in SQLite:
+
+```bash
+npm run amazon-status:migrate
+npm run amazon-status:summary
+```
+
+`amazon-order-status.json` still works as a fallback/source file, but `amazon-order-status.sqlite` is better once the history grows.
 
 ### Generate Invoice from Clockify
 
@@ -165,10 +178,10 @@ expenses/
 
 ## Troubleshooting
 
-### Gmail authentication fails
-- Ensure `gcp-oauth.keys.json` is in `~/.gmail-mcp/`
-- Run `npx @gongrzhe/server-gmail-autoauth-mcp auth` to re-authenticate
-- Check that Gmail API is enabled in Google Cloud Console
+### Gmail plugin access fails
+- Confirm the Gmail plugin/app is installed and connected in Codex.
+- Restart Codex after changing plugin or MCP configuration.
+- Use the configured `@gmail` plugin rather than `@gongrzhe/server-gmail-autoauth-mcp`.
 
 ### Xero authentication fails
 - Check `.env` has correct `XERO_CLIENT_ID`
@@ -190,8 +203,8 @@ expenses/
 
 This project relies on several excellent tools and libraries:
 
-- [Claude Code](https://claude.ai/claude-code) by Anthropic - The AI-powered CLI that orchestrates everything
-- [@gongrzhe/server-gmail-autoauth-mcp](https://www.npmjs.com/package/@gongrzhe/server-gmail-autoauth-mcp) - Gmail MCP server with auto-authentication
+- [Codex](https://openai.com/codex) and [Claude Code](https://claude.ai/claude-code) - AI coding agents that orchestrate the workflows
+- Gmail plugin/app (`@gmail`) - Gmail search, read, attachment, and label actions
 - [xero-node](https://github.com/XeroAPI/xero-node) - Official Xero API SDK
 - [amazon-orders](https://github.com/alexdlaird/amazon-orders) - Amazon order history library (via [amazon-order-mcp](https://github.com/muness/amazon-order-mcp))
 - [mcp_clockify](https://www.npmjs.com/package/mcp_clockify) - Clockify MCP server for time tracking integration

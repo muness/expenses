@@ -1,9 +1,9 @@
 {
   "mcpServers": {
-    "gmail": {
+    "1password": {
       "type": "stdio",
-      "command": "npx",
-      "args": ["-y", "@gongrzhe/server-gmail-autoauth-mcp"],
+      "command": "/Applications/1Password.app/Contents/MacOS/1password-mcp",
+      "args": [],
       "env": {}
     },
     "xero-expenses": {
@@ -17,8 +17,11 @@
     },
     "amazon-orders": {
       "type": "stdio",
-      "command": "uvx",
-      "args": ["amazon-orders-mcp"],
+      "command": "/bin/bash",
+      "args": [
+        "-c",
+        "cd /path/to/expenses && set -a && source /path/to/expenses/.env && set +a && uv run --quiet --with 'mcp[cli]>=1.2.0' --with 'amazon-orders>=4.0.0' --with 'python-dotenv>=1.0.0' --with 'nest-asyncio>=1.6.0' python /path/to/amazon-order-mcp-wrapper/amazon_order_mcp.py"
+      ],
       "env": {
         "AMAZON_USERNAME": "your-amazon-email@example.com",
         "AMAZON_PASSWORD": "your-amazon-password"
